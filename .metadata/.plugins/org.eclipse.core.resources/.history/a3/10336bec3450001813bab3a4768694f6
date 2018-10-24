@@ -1,0 +1,15 @@
+package com.stackroute.authentication.services;
+
+
+import com.jegan.authservice.exceptions.UserAlreadyExistsException;
+import com.jegan.authservice.exceptions.UserNotFoundException;
+import com.jegan.authservice.model.User;
+
+public interface UserService {
+
+	boolean saveUser(User user) throws UserAlreadyExistsException, UserNotFoundException;
+
+	public User findByUserIdAndPassword(String userId, String password) throws UserNotFoundException;
+
+
+}

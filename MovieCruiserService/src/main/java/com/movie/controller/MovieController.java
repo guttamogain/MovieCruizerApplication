@@ -1,0 +1,113 @@
+package com.movie.controller;
+
+import java.util.Set;
+
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.movie.domain.Movie;
+import com.movie.exception.MovieAlreadyExistsException;
+import com.movie.exception.MovieNotFoundException;
+import com.movie.services.MovieService;
+
+import io.jsonwebtoken.Jwts;
+
+@CrossOrigin(origins = "http://localhost:4200")
+@RestController
+@RequestMapping(path = "/api/v1/movieservice")
+public class MovieController {
+
+	@Autowired
+	private MovieService movieService;
+
+	//This Function is used for Saving movie
+	
+	@PostMapping("/movie")
+	public ResponseEntity<?> saveNewMovie(@RequestBody Movie movie, HttpServletRequest request,
+			HttpServletRequest response) {
+		System.out.println("saving movie");
+		String userId = getMovieByUserId(request);
+		System.out.println("userId::" + userId);
+		try {
+			movie.setUserId(userId);
+			movieService.saveMovie(movie);
+		} catch (MovieAlreadyExistsException e) {
+			return new ResponseEntity<String>(e.getMessage(), HttpStatus.CONFLICT);
+		}
+		return new ResponseEntity<Movie>(movie, HttpStatus.CREATED);
+	}
+
+	String getMovieByUserId(HttpServletRequest request) {
+		final String authHeader = request.getHeader("authorization");
+		final String token = authHeader.substring(7);
+		String userId = Jwts.parser().setSigningKey("secretkey").parseClaimsJws(token).getBody().getSubject();
+		return userId;
+	}
+
+	//This method is used for updating Comments 
+	@PutMapping(path = "/movie/{id}")
+	public ResponseEntity<?> updateMovie(@PathVariable("id") int movieId, HttpServletRequest request,
+			@RequestBody Movie movie) {
+		Movie fetchedMovie;
+		try {
+			String userId = getMovieByUserId(request);
+			int id = movieService.getIdwithUserIdAndMovieId(userId, movieId);
+			fetchedMovie = movieService.updateMovie(id, movie);
+		} catch (MovieNotFoundException e) {
+			return new ResponseEntity<String>(e.getMessage(), HttpStatus.NOT_FOUND);
+		}
+		return new ResponseEntity<Movie>(movie, HttpStatus.OK);
+	}
+
+	//This Method is user for delete movie
+	@DeleteMapping(value = "/movie/{id}")
+	public ResponseEntity<?> deleteMovieById(@PathVariable("id") int movieId, HttpServletRequest request) {
+		try {
+			String userId = getMovieByUserId(request);
+			int id = movieService.getIdwithUserIdAndMovieId(userId, movieId);
+			movieService.deleteMovieById(id);
+		} catch (MovieNotFoundException e) {
+			return new ResponseEntity<String>(e.getMessage(), HttpStatus.NOT_FOUND);
+		}
+		return new ResponseEntity<String>("movie deleted successfully", HttpStatus.OK);
+	}
+
+	//This method is used for fetch details by using userId
+	@GetMapping(path = "/movie/{id}")
+	public ResponseEntity<?> fetchMovieById(@PathVariable("id") int movieId, HttpServletRequest request) {
+		Movie thisMovie;
+		try {
+			String userId = getMovieByUserId(request);
+			int id = movieService.getIdwithUserIdAndMovieId(userId, movieId);
+			thisMovie = movieService.getMovieById(id);
+		} catch (MovieNotFoundException e) {
+			return new ResponseEntity<String>(e.getMessage(), HttpStatus.NOT_FOUND);
+		}
+		return new ResponseEntity<Movie>(thisMovie, HttpStatus.OK);
+	}
+
+	// This Method is used for retrive Movies saved by User
+	@GetMapping("/movies")
+	public @ResponseBody ResponseEntity<Set<Movie>> fetchMyMovies(final ServletRequest req, final ServletResponse res) {
+
+		final HttpServletRequest request = (HttpServletRequest) req;
+		String userId = getMovieByUserId(request);
+		System.out.println("userId::" + userId);
+		return new ResponseEntity<Set<Movie>>(movieService.getMyMovies(userId), HttpStatus.OK);
+	}
+}

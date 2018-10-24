@@ -1,0 +1,10 @@
+package com.stackroute.authentication.services;
+
+import java.util.Map;
+
+import com.jegan.authservice.model.User;
+
+public interface SecurityTokenGenerator {
+
+	Map<String, String> generateToken(User user);
+}
